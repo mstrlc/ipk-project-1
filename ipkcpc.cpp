@@ -22,6 +22,7 @@
 #include <signal.h>
 
 #define BUFSIZE 8092
+#define UDP_BUFSIZE 256
 
 bool forever = true;
 
@@ -70,7 +71,7 @@ args_t parse_args(int argc, char **argv)
 /**
  * @brief TCP client
  * @cite https://git.fit.vutbr.cz/NESFIT/IPK-Projekty/src/branch/master/Stubs/cpp/DemoTcp
- * 
+ *
  * @param args struct with parsed arguments
  */
 int tcp_client(args_t args)
@@ -121,7 +122,6 @@ int tcp_client(args_t args)
         // printf("Please enter msg: ");
         fgets(buf, BUFSIZE, stdin);
 
-
         /* odeslani zpravy na server */
         bytestx = send(client_socket, buf, strlen(buf), 0);
         // if (bytestx < 0)
@@ -149,8 +149,67 @@ int tcp_client(args_t args)
     return 0;
 }
 
+/**
+ * @brief UDP client
+ * @cite https://git.fit.vutbr.cz/NESFIT/IPK-Projekty/src/branch/master/Stubs/cpp/DemoUdp
+ *
+ * @param args struct with parsed arguments
+ */
 int udp_client(args_t args)
 {
+    printf("yay udp");
+
+    int client_socket, port_number, bytestx, bytesrx;
+    socklen_t serverlen;
+    const char *server_hostname;
+    struct hostent *server;
+    struct sockaddr_in server_address;
+    char buf[UDP_BUFSIZE];
+
+    server_hostname = args.host;
+    port_number = atoi(args.port);
+
+    /* 2. ziskani adresy serveru pomoci DNS */
+
+    if ((server = gethostbyname(server_hostname)) == NULL)
+    {
+        fprintf(stderr, "ERROR: no such host as %s\n", server_hostname);
+        exit(EXIT_FAILURE);
+    }
+
+    /* 3. nalezeni IP adresy serveru a inicializace struktury server_address */
+    bzero((char *)&server_address, sizeof(server_address));
+    server_address.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&server_address.sin_addr.s_addr, server->h_length);
+    server_address.sin_port = htons(port_number);
+
+    /* tiskne informace o vzdalenem soketu */
+    printf("INFO: Server socket: %s : %d \n", inet_ntoa(server_address.sin_addr), ntohs(server_address.sin_port));
+
+    /* Vytvoreni soketu */
+    if ((client_socket = socket(AF_INET, SOCK_DGRAM, 0)) <= 0)
+    {
+        perror("ERROR: socket");
+        exit(EXIT_FAILURE);
+    }
+
+    /* nacteni zpravy od uzivatele */
+    bzero(buf, UDP_BUFSIZE);
+    printf("Please enter msg: ");
+    fgets(buf, UDP_BUFSIZE, stdin);
+
+    /* odeslani zpravy na server */
+    serverlen = sizeof(server_address);
+    bytestx = sendto(client_socket, buf, strlen(buf), 0, (struct sockaddr *)&server_address, serverlen);
+    if (bytestx < 0)
+        perror("ERROR: sendto");
+
+    /* prijeti odpovedi a jeji vypsani */
+    bytesrx = recvfrom(client_socket, buf, UDP_BUFSIZE, 0, (struct sockaddr *)&server_address, &serverlen);
+    if (bytesrx < 0)
+        perror("ERROR: recvfrom");
+    printf("Echo from server: %s", buf);
+    return 0;
 }
 
 int main(int argc, char **argv)
@@ -161,7 +220,7 @@ int main(int argc, char **argv)
     {
         tcp_client(args);
     }
-    else if (args.mode == std::string("udp"))
+    if (args.mode == std::string("udp"))
     {
         udp_client(args);
     }
