@@ -133,6 +133,7 @@ int tcp_client(string host, string port) {
         bytestx = send(client_socket, buffer, strlen(buffer), 0);
         if (bytestx < 0) {
             perror("Error: Send");
+            close(client_socket);
             return EXIT_FAILURE;
         }
         // Clear the buffer
@@ -144,13 +145,21 @@ int tcp_client(string host, string port) {
             bytesrx = recv(client_socket, buffer, BUFSIZE, 0);
             if (bytesrx < 0) {
                 perror("Error: Receive");
+                close(client_socket);
                 return EXIT_FAILURE;
             }
         }
         
         // Print the result
         cout << buffer;
+
+        // Check for 'BYE' message
+        if (buffer[0] == 'B' && buffer[1] == 'Y' && buffer[2] == 'E') {
+            continue_loop = false;
+        }
     }
+
+    close(client_socket);
 
     return 0;
 }
