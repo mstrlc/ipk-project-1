@@ -26,9 +26,9 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
-#define BUFSIZE 8092
+#define BUFSIZE 255
 
-int client_socket;
+bool continue_loop = true;
 
 // No need to write std:: for everything
 using namespace std;
@@ -43,10 +43,6 @@ struct args_t
     string port; // Port of the server
     string mode; // 'tcp' or 'udp'
 };
-
-void close_socket() {
-    close(client_socket);
-}
 
 /**
  * @brief Parses command-line arguments
@@ -81,15 +77,16 @@ int tcp_client(string host, string port) {
 }
 
 int udp_client(string host, string port) {
-    const char* server_hostname = host.c_str();
-    int port_number = atoi(port.c_str());
+    const char* server_hostname = host.c_str(); // Hostname of the server
+    int port_number = atoi(port.c_str());       // Port number of the server
+    int client_socket;                          // Socket for the client
+    int bytestx;                                // Bytes sent
+    int bytesrx;                                // Bytes received
+    socklen_t server_len;                       // Length of the server address
+    struct hostent* server;                     // Server structure
+    struct sockaddr_in server_address;          // Server address
 
-    int bytestx;
-    int bytesrx;
-    socklen_t serverlen;
-    struct hostent* server;
-    struct sockaddr_in server_address;
-
+    // Get the server IPv4 address
     server = gethostbyname2(server_hostname, AF_INET);
     if (server == NULL) {
         cout << "Error: No such host as " << server_hostname << endl;
@@ -113,55 +110,60 @@ int udp_client(string host, string port) {
         return EXIT_FAILURE;
     }
 
-    char buffer[BUFSIZE];
-    char payload[BUFSIZE];
+    char buffer[BUFSIZE];       // Buffer for the calculation data
+    char payload[BUFSIZE + 2];  // Buffer for the payload (opcode + data length + calculation data)
 
-    // Get the payload data from the user
-    cin.getline(payload, BUFSIZE);
 
-    // Set the opcode to 0 for request
-    buffer[0] = 0;
+    while (continue_loop) {
+        // Clear the buffers
+        bzero(buffer, BUFSIZE);
+        bzero(payload, BUFSIZE + 2);
 
-    // Get the length of the payload data
-    size_t payload_length = strlen(payload);
+        // Get the payload data from the user
+        cin.getline(buffer, BUFSIZE);
 
-    // Set the payload length in the buffer
-    buffer[1] = static_cast<char>(payload_length);
+        // Set the opcode to 0 for request
+        payload[0] = 0;
 
-    // Copy the payload data to the buffer
-    strcpy(&buffer[2], payload);
+        // Get the length of the payload data
+        // Set the payload length in the buffer
+        int buffer_length = strlen(buffer);
+        payload[1] = (char)buffer_length;
 
-    /* Send message to the server */
-    serverlen = sizeof(server_address);
-    bytestx = sendto(client_socket, buffer, payload_length + 2, 0, (struct sockaddr*)&server_address, serverlen);
-    if (bytestx < 0) {
-        perror("ERROR: sendto");
-        return EXIT_FAILURE;
+        // Copy the buffer data to the payload
+        strcpy(&payload[2], buffer);
+
+        // Send the data to the server
+        server_len = sizeof(server_address);
+        bytestx = sendto(client_socket, payload, buffer_length + 2, 0, (struct sockaddr*)&server_address, server_len);
+        if (bytestx < 0) {
+            perror("ERROR: Sendto");
+            close(client_socket);
+            return EXIT_FAILURE;
+        }
+
+        // Clear the buffers
+        bzero(buffer, BUFSIZE);
+        bzero(payload, BUFSIZE + 2);
+
+        // Receive the data from the server
+        bytesrx = recvfrom(client_socket, buffer, BUFSIZE, 0, (struct sockaddr*)&server_address, &server_len);
+        if (bytesrx < 0) {
+            perror("ERROR: Recvfrom");
+            close(client_socket);
+            return EXIT_FAILURE;
+        }
+
+        // Get the status of the response
+        char out_status = buffer[1];
+
+        if (out_status == 0)
+            cout << "OK:" << buffer + 3 << endl;
+        else if (out_status == 1)
+            cout << "ERR:" << buffer + 3 << endl;
     }
 
-    bzero(buffer, BUFSIZE);
-
-    /* Receive and print the response */
-    bytesrx = recvfrom(client_socket, buffer, BUFSIZE, 0, (struct sockaddr*)&server_address, &serverlen);
-    if (bytesrx < 0) {
-        perror("ERROR: recvfrom");
-        return EXIT_FAILURE;
-    }
-
-    char output_op_code = buffer[0];
-    char output_status_code = buffer[1];
-    char output_payload_length = buffer[2];
-    char output_final[BUFSIZE];
-
-    for (int i = 0; i < output_payload_length; i++) {
-        output_final[i] = buffer[i + 3];
-    }
-
-    if (output_status_code == 0)
-        cout << "OK:" << output_final << endl;
-    else if (output_status_code == 1)
-        cout << "ERR:" << output_final << endl;
-
+    close(client_socket);
     return 0;
 }
 
