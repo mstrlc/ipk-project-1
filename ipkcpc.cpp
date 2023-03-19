@@ -71,11 +71,94 @@ args_t parse_args(int argc, char** argv) {
     return args;
 }
 
+/**
+ * @brief TCP client
+ *
+ * @cite https://git.fit.vutbr.cz/NESFIT/IPK-Projekty/src/branch/master/Stubs/cpp/DemoTcp
+ *
+ * @param host Hostname or address of the server
+ * @param port Port number of the server
+ * @return Return code
+ */
 int tcp_client(string host, string port) {
+    const char* server_hostname = host.c_str(); // Hostname of the server
+    int port_number = atoi(port.c_str());       // Port number of the server
+    int client_socket;                          // Socket for the client
+    int bytestx;                                // Bytes sent
+    int bytesrx;                                // Bytes received
+    struct hostent* server;                     // Server structure
+    struct sockaddr_in server_address;          // Server address
+
+    // Get the server IPv4 address
+    server = gethostbyname2(server_hostname, AF_INET);
+    if (server == NULL) {
+        cout << "Error: No such host as " << server_hostname << endl;
+        return EXIT_FAILURE;
+    }
+
+    // Set the server address
+    // Zero the structure
+    bzero((char*)&server_address, sizeof(server_address));
+    // Set the address family, AF_INET for IPv4
+    server_address.sin_family = AF_INET;
+    // Copy the server address to the structure
+    bcopy((char*)server->h_addr, (char*)&server_address.sin_addr.s_addr, server->h_length);
+    // Set the port number
+    server_address.sin_port = htons(port_number);
+
+    // Create the socket
+    client_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (client_socket <= 0) {
+        perror("Error: Socket");
+        return EXIT_FAILURE;
+    }
+
+    // Connect to the server
+    int connect_result = connect(client_socket, (struct sockaddr*)&server_address, sizeof(server_address));
+    if (connect_result < 0) {
+        perror("Error: Connect");
+        return EXIT_FAILURE;
+    }
+
+    char buffer[BUFSIZE];       // Buffer for the calculation data
+
+    while (continue_loop) {
+        // Clear the buffer
+        bzero(buffer, BUFSIZE);
+
+        // Get the payload data from the user
+        cin.getline(buffer, BUFSIZE);
+
+        // Send the data to the server
+        bytestx = send(client_socket, buffer, strlen(buffer), 0);
+        if (bytestx < 0) {
+            perror("Error: Send");
+            return EXIT_FAILURE;
+        }
+    
+        // Receive the data from the server
+        bytesrx = recv(client_socket, buffer, BUFSIZE, 0);
+        if (bytesrx < 0) {
+            perror("Error: Receive");
+            return EXIT_FAILURE;
+        }
+
+        // Print the result
+        cout << buffer << endl;
+    }
 
     return 0;
 }
 
+/**
+ * @brief UDP client
+ *
+ * @cite https://git.fit.vutbr.cz/NESFIT/IPK-Projekty/src/branch/master/Stubs/cpp/DemoUdp
+ *
+ * @param host Hostname or address of the server
+ * @param port Port number of the server
+ * @return Return code
+ */
 int udp_client(string host, string port) {
     const char* server_hostname = host.c_str(); // Hostname of the server
     int port_number = atoi(port.c_str());       // Port number of the server
