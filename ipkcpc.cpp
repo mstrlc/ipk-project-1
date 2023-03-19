@@ -126,8 +126,8 @@ int tcp_client(string host, string port) {
         // Clear the buffer
         bzero(buffer, BUFSIZE);
 
-        // Get the payload data from the user
-        cin.getline(buffer, BUFSIZE);
+        // Get the data from the user
+        fgets(buffer, BUFSIZE-1, stdin);
 
         // Send the data to the server
         bytestx = send(client_socket, buffer, strlen(buffer), 0);
@@ -135,16 +135,21 @@ int tcp_client(string host, string port) {
             perror("Error: Send");
             return EXIT_FAILURE;
         }
-    
-        // Receive the data from the server
-        bytesrx = recv(client_socket, buffer, BUFSIZE, 0);
-        if (bytesrx < 0) {
-            perror("Error: Receive");
-            return EXIT_FAILURE;
-        }
+        // Clear the buffer
+        bzero(buffer, BUFSIZE);
 
+        // Receive the data from the server
+        // Loop until the whole message is received (contains newline)
+        while (strchr(buffer, '\n') == NULL) {
+            bytesrx = recv(client_socket, buffer, BUFSIZE, 0);
+            if (bytesrx < 0) {
+                perror("Error: Receive");
+                return EXIT_FAILURE;
+            }
+        }
+        
         // Print the result
-        cout << buffer << endl;
+        cout << buffer;
     }
 
     return 0;
