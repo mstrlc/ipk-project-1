@@ -166,8 +166,9 @@ int tcp_client(string host, string port) {
         // Get the data from the user
         fgets(buffer, TCP_BUFSIZE - 1, stdin);
         // Catch if ctrl+c is pressed
-        if (buffer[0] == '\0') {
-            strcpy(buffer, "BYE\n");
+        if (buffer[0] == '\n') {
+            bzero(buffer, TCP_BUFSIZE);
+            continue;
         }
 
         // Send the data to the server
@@ -181,14 +182,11 @@ int tcp_client(string host, string port) {
         bzero(buffer, TCP_BUFSIZE);
 
         // Receive the data from the server
-        // Loop until the whole message is received (contains newline)
-        while (strchr(buffer, '\n') == NULL) {
-            bytesrx = recv(client_socket, buffer, TCP_BUFSIZE, 0);
-            if (bytesrx < 0) {
-                perror("Error: Receive");
-                close(client_socket);
-                return EXIT_FAILURE;
-            }
+        bytesrx = recv(client_socket, buffer, TCP_BUFSIZE, 0);
+        if (bytesrx < 0) {
+            perror("Error: Receive");
+            close(client_socket);
+            return EXIT_FAILURE;
         }
 
         // Print the result
