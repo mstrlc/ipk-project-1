@@ -112,6 +112,7 @@ args_t parse_args(int argc, char** argv) {
  * @brief TCP client
  *
  * @cite https://git.fit.vutbr.cz/NESFIT/IPK-Projekty/src/branch/master/Stubs/cpp/DemoTcp
+ * @cite https://linux.die.net/man/3/gethostbyname2
  *
  * @param host Hostname or address of the server
  * @param port Port number of the server
@@ -208,6 +209,7 @@ int tcp_client(string host, string port) {
  * @brief UDP client
  *
  * @cite https://git.fit.vutbr.cz/NESFIT/IPK-Projekty/src/branch/master/Stubs/cpp/DemoUdp
+ * @cite https://linux.die.net/man/3/gethostbyname2
  *
  * @param host Hostname or address of the server
  * @param port Port number of the server
