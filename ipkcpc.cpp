@@ -15,10 +15,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
 
 // Unix-specific includes, will work only on Linux, macOS, etc.
 // Would need to be changed for Windows (Along with the rest of the code)
+#include <signal.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netdb.h>
@@ -26,9 +26,8 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
-#define BUFSIZE 255
-
-bool continue_loop = true;
+#define UDP_BUFSIZE 255
+#define TCP_BUFSIZE 1024
 
 // No need to write std:: for everything
 using namespace std;
@@ -43,6 +42,44 @@ struct args_t
     string port; // Port of the server
     string mode; // 'tcp' or 'udp'
 };
+
+// Global variables
+args_t args;
+bool continue_loop = true;
+int client_socket;
+
+/**
+ * @brief Close connection and exit
+ *
+ * If the mode is TCP, send 'BYE' to the server and receive the response
+ */
+void close_connection() {
+    if (args.mode == "tcp") {
+        // Send 'BYE' to the server
+        send(client_socket, "BYE\n", 4, 0);
+
+        // Receive the response
+        char buffer[TCP_BUFSIZE];
+        recv(client_socket, buffer, TCP_BUFSIZE, 0);
+        cout << buffer;
+    }
+
+    close(client_socket);
+    exit(EXIT_SUCCESS);
+}
+
+/**
+ * @brief Signal handler
+ *
+ * @cite https://stackoverflow.com/a/1641223
+ *
+ * @param sig Signal number
+ */
+void sighandler(int sig) {
+    continue_loop = false;
+    close_connection();
+    return;
+}
 
 /**
  * @brief Parses command-line arguments
@@ -83,7 +120,6 @@ args_t parse_args(int argc, char** argv) {
 int tcp_client(string host, string port) {
     const char* server_hostname = host.c_str(); // Hostname of the server
     int port_number = atoi(port.c_str());       // Port number of the server
-    int client_socket;                          // Socket for the client
     int bytestx;                                // Bytes sent
     int bytesrx;                                // Bytes received
     struct hostent* server;                     // Server structure
@@ -120,14 +156,18 @@ int tcp_client(string host, string port) {
         return EXIT_FAILURE;
     }
 
-    char buffer[BUFSIZE];       // Buffer for the calculation data
+    char buffer[TCP_BUFSIZE];       // Buffer for the calculation data
 
     while (continue_loop) {
         // Clear the buffer
-        bzero(buffer, BUFSIZE);
+        bzero(buffer, TCP_BUFSIZE);
 
         // Get the data from the user
-        fgets(buffer, BUFSIZE-1, stdin);
+        fgets(buffer, TCP_BUFSIZE - 1, stdin);
+        // Catch if ctrl+c is pressed
+        if (buffer[0] == '\0') {
+            strcpy(buffer, "BYE\n");
+        }
 
         // Send the data to the server
         bytestx = send(client_socket, buffer, strlen(buffer), 0);
@@ -137,19 +177,19 @@ int tcp_client(string host, string port) {
             return EXIT_FAILURE;
         }
         // Clear the buffer
-        bzero(buffer, BUFSIZE);
+        bzero(buffer, TCP_BUFSIZE);
 
         // Receive the data from the server
         // Loop until the whole message is received (contains newline)
         while (strchr(buffer, '\n') == NULL) {
-            bytesrx = recv(client_socket, buffer, BUFSIZE, 0);
+            bytesrx = recv(client_socket, buffer, TCP_BUFSIZE, 0);
             if (bytesrx < 0) {
                 perror("Error: Receive");
                 close(client_socket);
                 return EXIT_FAILURE;
             }
         }
-        
+
         // Print the result
         cout << buffer;
 
@@ -176,7 +216,6 @@ int tcp_client(string host, string port) {
 int udp_client(string host, string port) {
     const char* server_hostname = host.c_str(); // Hostname of the server
     int port_number = atoi(port.c_str());       // Port number of the server
-    int client_socket;                          // Socket for the client
     int bytestx;                                // Bytes sent
     int bytesrx;                                // Bytes received
     socklen_t server_len;                       // Length of the server address
@@ -207,17 +246,17 @@ int udp_client(string host, string port) {
         return EXIT_FAILURE;
     }
 
-    char buffer[BUFSIZE];       // Buffer for the calculation data
-    char payload[BUFSIZE + 2];  // Buffer for the payload (opcode + data length + calculation data)
+    char buffer[UDP_BUFSIZE];       // Buffer for the calculation data
+    char payload[UDP_BUFSIZE + 2];  // Buffer for the payload (opcode + data length + calculation data)
 
 
     while (continue_loop) {
         // Clear the buffers
-        bzero(buffer, BUFSIZE);
-        bzero(payload, BUFSIZE + 2);
+        bzero(buffer, UDP_BUFSIZE);
+        bzero(payload, UDP_BUFSIZE + 2);
 
         // Get the payload data from the user
-        cin.getline(buffer, BUFSIZE);
+        cin.getline(buffer, UDP_BUFSIZE);
 
         // Set the opcode to 0 for request
         payload[0] = 0;
@@ -240,11 +279,11 @@ int udp_client(string host, string port) {
         }
 
         // Clear the buffers
-        bzero(buffer, BUFSIZE);
-        bzero(payload, BUFSIZE + 2);
+        bzero(buffer, UDP_BUFSIZE);
+        bzero(payload, UDP_BUFSIZE + 2);
 
         // Receive the data from the server
-        bytesrx = recvfrom(client_socket, buffer, BUFSIZE, 0, (struct sockaddr*)&server_address, &server_len);
+        bytesrx = recvfrom(client_socket, buffer, UDP_BUFSIZE, 0, (struct sockaddr*)&server_address, &server_len);
         if (bytesrx < 0) {
             perror("ERROR: Recvfrom");
             close(client_socket);
@@ -273,7 +312,9 @@ int udp_client(string host, string port) {
  * @return Exit code
  */
 int main(int argc, char** argv) {
-    args_t args = parse_args(argc, argv);
+    // Load arguments to global variable
+    // To be able to close conenction correctly on signal
+    args = parse_args(argc, argv);
 
     // Check if host is correct
     if (args.host.empty()) {
@@ -286,6 +327,8 @@ int main(int argc, char** argv) {
         cerr << "Error: Port must be in range 1024-65535." << endl;
         return 1;
     }
+
+    signal(SIGINT, &sighandler);
 
     // Select mode based on the parsed arguments
     // Handle error if mode is not 'tcp' or 'udp'
