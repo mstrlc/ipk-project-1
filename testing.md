@@ -34,8 +34,8 @@ Test 4:
 Error: No such host as 1.1.1.1.1
 ```
 
-## TCP
-Launch all with `./ipkcpc -m tcp -p 2023 -h localhost`
+## UDP
+Launch all with `./ipkcpc -m udp -p 2023 -h localhost`
 
 Test 1:
 ```
@@ -94,8 +94,8 @@ OK:9999800001
 ```
 
 
-## UDP
-Launch all with `./ipkcpc -m udp -p 2023 -h localhost`
+## TCP
+Launch all with `./ipkcpc -m tcp -p 2023 -h localhost`
 
 Test 1:
 ```
