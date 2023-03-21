@@ -165,11 +165,6 @@ int tcp_client(string host, string port) {
 
         // Get the data from the user
         fgets(buffer, TCP_BUFSIZE - 1, stdin);
-        // Catch if ctrl+c is pressed
-        if (buffer[0] == '\n') {
-            bzero(buffer, TCP_BUFSIZE);
-            continue;
-        }
 
         // Send the data to the server
         bytestx = send(client_socket, buffer, strlen(buffer), 0);
