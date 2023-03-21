@@ -64,4 +64,4 @@ The client was tested both on macOS and the provided reference Linux VM against 
 
 [3]: ROYER, Gab. C++ - How can I catch a ctrl-c event? - Stack Overflow [online]. Oct 29, 2009 [cit. 2023-03-21]. Avaiable at: https://stackoverflow.com/a/1641223
 
-[4]: Linux Howtos: C/C++ -> Sockets Tutorial [online]. [cit. 2023-03-21]. Dostupné z: https://www.linuxhowtos.org/C_C++/socket.htm
+[4]: Linux Howtos: C/C++ -> Sockets Tutorial [online]. [cit. 2023-03-21]. Available at: https://www.linuxhowtos.org/C_C++/socket.htm
