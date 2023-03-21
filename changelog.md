@@ -1,8 +1,10 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes over time will be documented in this file.
 
 Links lead to corresponding commits on Gitea.
+
+I am not aware of any requirements that were not implemented.
 
 ---
 
