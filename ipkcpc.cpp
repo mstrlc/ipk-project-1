@@ -252,6 +252,10 @@ int udp_client(string host, string port) {
 
         // Get the payload data from the user
         cin.getline(buffer, UDP_BUFSIZE);
+        // If got EOF, exit
+        if (cin.eof()) {
+            close_connection();
+        }
 
         // Set the opcode to 0 for request
         payload[0] = 0;
